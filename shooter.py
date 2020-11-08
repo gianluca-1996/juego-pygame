@@ -19,7 +19,7 @@ clock = pygame.time.Clock()  # RELOJ PARA LOS FRAMES POR SEGUNDO
 
 def draw_text(surface, text, size, x, y):
 	font = pygame.font.SysFont("serif", size)
-	text_surface = font.render(text, True, WHITE)
+	text_surface = font.render(text, True, (23, 177, 30))
 	text_rect = text_surface.get_rect()
 	text_rect.midtop = (x, y)
 	surface.blit(text_surface, text_rect)
@@ -95,11 +95,10 @@ class Enemy(pygame.sprite.Sprite):
 
 		self.rect.x += self.speedx
 
-
 	def shoot(self):
 		bullet = Bullet2(self.rect.centerx, self.rect.height)
 		all_sprites.add(bullet)
-		bullets.add(bullet)
+		bulletsEnemy.add(bullet)
 
 class Meteor(pygame.sprite.Sprite):
 	def __init__(self):
@@ -202,8 +201,39 @@ def show_go_screen():
 				elif event.key == pygame.K_KP0 or event.key == pygame.K_0:
 					pygame.quit()
 
+def mostrarSiguienteNivel():
+	screen.blit(background2, [0,0])
+	draw_text(screen, "....SIGUIENTE NIVEL....", 65, WIDTH // 2, HEIGHT // 4)
+	draw_text(screen, "Presionar C para continuar...", 65, WIDTH // 2, HEIGHT - 300)
+	pygame.display.flip()
+	pause()
 
-	
+def mostrarVictoria():
+	screen.blit(background2, [0,0])
+	draw_text(screen, "¡¡HAS GANADO!!", 65, WIDTH // 2, HEIGHT // 4)
+	draw_text(screen, " Presionar C para volver a jugar...", 65, WIDTH // 2, HEIGHT - 300)
+	pygame.display.flip()
+	pause()
+
+def mostrarDerrota():
+	screen.blit(background2, [0,0])
+	draw_text(screen, "HAS PERDIDO :(", 65, WIDTH // 2, HEIGHT // 4)
+	draw_text(screen, "Presionar C para continuar...", 65, WIDTH // 2, HEIGHT - 300)
+	pygame.display.flip()
+	pause()
+
+def pause():
+	pausa = True
+	while pausa:
+		for event in pygame.event.get():
+			if event.type == pygame.QUIT:
+				pausa = False
+				running = False
+				pygame.quit()
+			
+			if event.type == pygame.KEYDOWN:
+				if event.key == pygame.K_c:
+					pausa = False
 		
 
 # se cargan todas las imagenes de los meteoros en una lista
@@ -226,7 +256,7 @@ for i in range(9):
 
 # Cargar imagen de fondo
 background = pygame.image.load("assets/background.png").convert()
-
+background2 = pygame.image.load("assets/universo.png").convert()
 # Cargar sonidos
 laser_sound = pygame.mixer.Sound("assets/laser5.ogg")
 explosion_sound = pygame.mixer.Sound("assets/explosion.wav")
@@ -253,17 +283,20 @@ while running:
 		all_sprites = pygame.sprite.Group()		#LISTA DE TODOS LOS SPRITES
 		meteor_list = pygame.sprite.Group()		#LISTA DE METEOROS
 		bullets = pygame.sprite.Group()
+		bulletsEnemy = pygame.sprite.Group()
 
 		player = Player()		#INICIALIZA EL JUGADOR
 		all_sprites.add(player)	#SE AGREGA EL JUGADOR A LA LISTA        
 		enemigo = Enemy()
 		
-		for i in range(5):		#SE CREAN 8 METEOROS
+		for i in range(7):		#SE CREAN METEOROS
 			meteor = Meteor()	
 			all_sprites.add(meteor)
 			meteor_list.add(meteor)
 		
 		score = 0
+		jugandoLevel2 = True
+		nivel = 1
 
 		
 	clock.tick(60)	#FPS
@@ -288,17 +321,7 @@ while running:
 				player.shoot()
 
 			elif event.key == pygame.K_UP:
-				pausa = True
-				while pausa:
-					for event in pygame.event.get():
-						if event.type == pygame.QUIT:
-							pausa = False
-							running = False
-							pygame.quit()
-						
-						if event.type == pygame.KEYDOWN:
-							if event.key == pygame.K_c:
-								pausa = False
+				pause()
 
 	all_sprites.update()	#ACTUALIZA TODOS LOS SPRITES
 
@@ -306,8 +329,8 @@ while running:
 	# colisiones - meteoro - laser
 	hits = pygame.sprite.groupcollide(meteor_list, bullets, True, True) 
 	for hit in hits:
+		#explosion_sound.play()
 		score += 10
-		# explosion_sound.play()
 		explosion = Explosion(hit.rect.center)
 		all_sprites.add(explosion)
 		meteor = Meteor()
@@ -317,7 +340,7 @@ while running:
 	# Checar colisiones - jugador - meteoro
 	hits = pygame.sprite.spritecollide(player, meteor_list, True)
 	for hit in hits:
-		player.shield -= 25
+		player.shield -= 10
 		meteor = Meteor()
 		all_sprites.add(meteor)
 		meteor_list.add(meteor)
@@ -326,21 +349,35 @@ while running:
 			nivel = 1
 			score = 0
 			jugandoLevel2 = True
+			mostrarDerrota()
 
-
+	#COLISIONES ENEMIGO - LASER JUGADOR
 	hits = pygame.sprite.spritecollide(enemigo, bullets, True)
 	for hit in hits:
-		enemigo.shield -= 25
+		enemigo.shield -= 5
 		score += 10
 		if enemigo.shield <= 0:
 			game_over = True
 			nivel = 1
 			score = 0
 			jugandoLevel2 = True
+			mostrarVictoria()
+
+	#COLISIONES LASER ENEMIGO - PLAYER
+	hits = pygame.sprite.spritecollide(player, bulletsEnemy, True)
+	for hit in hits:
+		player.shield -= 10
+		if player.shield <= 0:
+			game_over = True
+			mostrarDerrota()
 
 
-	screen.blit(background, [0, 0])		#COLOCA LA IMAGEN DE FONDO EN LA PANTALLA
+	if nivel == 1:
+		screen.blit(background, [0, 0])		#COLOCA LA IMAGEN DE FONDO EN LA PANTALLA
 
+	else:
+		screen.blit(background2, [0, 0])
+		
 	all_sprites.draw(screen)			#SE DIBUJAN LOS SPRITES EN LA PANTALLA
 
 	# Marcador
@@ -355,8 +392,11 @@ while running:
 	
 	contador += 1
 
-	if score >= 50:
+	if ((score >= 200) & (nivel == 1)):
 		nivel = 2
+		mostrarSiguienteNivel()
+		score = 0
+
 
 
 pygame.quit()
